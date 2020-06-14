@@ -1,40 +1,34 @@
 package com.example.app_media_music;
 
 import android.animation.ObjectAnimator;
+import android.app.Notification;
+import android.app.NotificationManager;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
-import android.content.SharedPreferences;
-import android.media.MediaPlayer;
-import android.os.Binder;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
 import android.view.View;
 import android.view.animation.Animation;
-import android.view.animation.AnimationUtils;
 import android.view.animation.LinearInterpolator;
 import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
-
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Objects;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
 public class MainActivity extends AppCompatActivity {
-
+    
+    public static final String TAG = "BBB";
+    public static final int PLAYER_SERVICE_NOTIFICATION_ID = 1;
     @BindView(R.id.txtTenbaihat)
     TextView txtTenbaihat;
     @BindView(R.id.ImgeView)
@@ -60,7 +54,29 @@ public class MainActivity extends AppCompatActivity {
     BoundService boundService;
     int stateAnimation = 0, stateSong = 0;
     boolean stateNotication = true;
-    BroadcastReceiver broadcastReceiver;
+
+    BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getStringExtra("actionName");
+            switch (action) {
+                case BoundService.ACTION_PLAY:
+                    if (boundService.isPlaying()) {
+                        ImgPlay.setBackgroundResource(R.drawable.ic_baseline_play_arrow_24);
+                        mAnimator.pause();
+                    } else {
+                        ImgPlay.setBackgroundResource(R.drawable.ic_baseline_pause_24);
+                        mAnimator.resume();
+                    }
+                    /*
+                    Anh tự thêm vô các trường hợp nha (nhớ là nó còn ở bên BoundService nữa á)
+                case ACTION_NEXT:
+                    break;
+                case ACTION_PREVIOUS:
+                    break;*/
+            }
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,23 +88,22 @@ public class MainActivity extends AppCompatActivity {
         Connect();
         Click();
         registerReceiver(broadcastReceiver, new IntentFilter("NEXTBR"));
-
     }
 
     @Override
     protected void onStart() {
         Intent intent = new Intent(this, BoundService.class);
         bindService(intent, serviceConnection, BIND_AUTO_CREATE);
-        broadcastReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                String action = intent.getExtras().getString("actionName");
-                if(BoundService.ACTION_NEXT.equals(action)){
-                    boundService.Next();
-                    Toast.makeText(context, "aaaa", Toast.LENGTH_SHORT).show();
-                }
-            }
-        };
+//        broadcastReceiver = new BroadcastReceiver() {
+//            @Override
+//            public void onReceive(Context context, Intent intent) {
+//                String action = intent.getExtras().getString("actionName");
+//                if(BoundService.ACTION_NEXT.equals(action)){
+//                    boundService.Next();
+//                    Toast.makeText(context, "aaaa", Toast.LENGTH_SHORT).show();
+//                }
+//            }
+//        };
         super.onStart();
     }
 
@@ -100,12 +115,10 @@ public class MainActivity extends AppCompatActivity {
                 boundService = localBinder.getService();
                 boundService.addSong();
                 boundService.CreateMedia();
-
             }
 
             @Override
             public void onServiceDisconnected(ComponentName name) {
-
             }
         };
     }
@@ -113,7 +126,9 @@ public class MainActivity extends AppCompatActivity {
     public void Click() {
         ImgPlay.setOnClickListener(v -> {
             if (stateNotication == true) {
-                boundService.CreateNotification(10);
+                Notification notification = boundService.CreateNotification(10).build();
+                NotificationManager notificationManager = (NotificationManager) getApplication().getSystemService(Context.NOTIFICATION_SERVICE);
+                notificationManager.notify(PLAYER_SERVICE_NOTIFICATION_ID, notification);
                 boundService.Play();
                 stateNotication = false;
             } else {
@@ -141,7 +156,9 @@ public class MainActivity extends AppCompatActivity {
             txtTimeEnd.setText(boundService.getTimeEnd());
 
         });
+
         ImgStop.setOnClickListener(v -> {
+            boundService.Stop();
             boundService.CreateMedia();
             ImgPlay.setBackgroundResource(R.drawable.ic_baseline_play_arrow_24);
         });
@@ -153,7 +170,9 @@ public class MainActivity extends AppCompatActivity {
             txtTenbaihat.setText(boundService.getTitle());
             boundService.TimeEnd();
             txtTimeEnd.setText(boundService.getTimeEnd());
-            boundService.CreateNotification(10);
+            Notification notification = boundService.CreateNotification(10).build();
+            NotificationManager notificationManager = (NotificationManager) getApplication().getSystemService(Context.NOTIFICATION_SERVICE);
+            notificationManager.notify(PLAYER_SERVICE_NOTIFICATION_ID, notification);
         });
 
         ImgPre.setOnClickListener(v -> {
@@ -164,7 +183,9 @@ public class MainActivity extends AppCompatActivity {
             txtTenbaihat.setText(boundService.getTitle());
             boundService.TimeEnd();
             txtTimeEnd.setText(boundService.getTimeEnd());
-            boundService.CreateNotification(10);
+            Notification notification = boundService.CreateNotification(10).build();
+            NotificationManager notificationManager = (NotificationManager) getApplication().getSystemService(Context.NOTIFICATION_SERVICE);
+            notificationManager.notify(PLAYER_SERVICE_NOTIFICATION_ID, notification);
         });
     }
 
