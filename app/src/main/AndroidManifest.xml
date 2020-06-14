@@ -16,10 +16,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <service android:name=".BoundService"
             android:exported="true"
             android:enabled="true"/>
-
+        <receiver android:name=".MyBroadCastReceiver"/>
     </application>
 
 </manifest>

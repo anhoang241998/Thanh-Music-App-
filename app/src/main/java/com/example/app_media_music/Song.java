@@ -5,14 +5,16 @@ import android.icu.text.CaseMap;
 public class Song {
     private String Title;
     private int File;
+    private int Img;
 
-    public Song(String title, int file) {
+    public Song(String title, int file, int img) {
         Title = title;
         File = file;
+        Img  = img;
     }
-
-
-
+    public int getImg() {
+        return Img;
+    }
     public String getTitle() {
         return Title;
     }

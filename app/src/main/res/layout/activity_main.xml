@@ -18,16 +18,16 @@
         android:layout_height="wrap_content"/>
     <androidx.cardview.widget.CardView
         android:id="@+id/ImgCardview"
-        android:layout_width="280dp"
-        android:layout_height="280dp"
-        app:cardCornerRadius="140dp"
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        app:cardCornerRadius="160dp"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="100dp">
         <ImageView
             android:id="@+id/ImgeView"
             android:background="@drawable/img_loiyeu"
             android:layout_width="wrap_content"
-            android:layout_height="match_parent"/>
+            android:layout_height="wrap_content"/>
     </androidx.cardview.widget.CardView>
     <TextView
         android:id="@+id/txtTimeBegin"
@@ -80,7 +80,7 @@
             android:layout_marginEnd="10dp"
             android:layout_height="70dp"/>
         <ImageView
-            android:id="@+id/ImgPause"
+            android:id="@+id/ImgStop"
             android:background="@drawable/ic_baseline_stop_24"
             android:layout_width="70dp"
             android:visibility="visible"

@@ -1,28 +1,34 @@
 package com.example.app_media_music;
 
+import android.animation.ObjectAnimator;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.media.MediaPlayer;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
+import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
+import android.view.animation.LinearInterpolator;
 import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Objects;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -45,165 +51,138 @@ public class MainActivity extends AppCompatActivity {
     ImageView ImgPre;
     @BindView(R.id.ImgPlay)
     ImageView ImgPlay;
-    @BindView(R.id.ImgPause)
-    ImageView ImgPause;
+    @BindView(R.id.ImgStop)
+    ImageView ImgStop;
     @BindView(R.id.ImgNext)
     ImageView ImgNext;
-
-    ArrayList<Song> arraySong;
-    int positon = 0;
-    int n = 1;
-    MediaPlayer mediaPlayer;
-    Animation animationRotate;
+    ObjectAnimator mAnimator;
+    ServiceConnection serviceConnection;
     BoundService boundService;
-   // BroadcastReceiver mBroadcastReceiver;
-    ServiceConnection mServiceConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            BoundService.LocalBinder localBinder = (BoundService.LocalBinder) service;
-            boundService= localBinder.getService();
-            boundService.CreateNotification();
-        }
+    int stateAnimation = 0, stateSong = 0;
+    boolean stateNotication = true;
+    BroadcastReceiver broadcastReceiver;
 
-        @Override
-        public void onServiceDisconnected(ComponentName name) {
-
-        }
-    };
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         ButterKnife.bind(this);
-        Log.d("BBB",getIntent().toString());
-        addSong();
-        KhoitaoMedia();
+        Log.d("BBB", getIntent().toString());
+        AnimationRotate();
+        Connect();
         Click();
-    }
-    BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
+        registerReceiver(broadcastReceiver, new IntentFilter("NEXTBR"));
 
-            mediaPlayer.pause();
-        }
-    };
+    }
 
     @Override
     protected void onStart() {
-        Broadcast();
+        Intent intent = new Intent(this, BoundService.class);
+        bindService(intent, serviceConnection, BIND_AUTO_CREATE);
+        broadcastReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                String action = intent.getExtras().getString("actionName");
+                if(BoundService.ACTION_NEXT.equals(action)){
+                    boundService.Next();
+                    Toast.makeText(context, "aaaa", Toast.LENGTH_SHORT).show();
+                }
+            }
+        };
         super.onStart();
     }
-    public void Broadcast(){
-        IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(BoundService.ACTION_PLAY);
-        registerReceiver(broadcastReceiver,intentFilter);
-    }
 
-    public void CreateAnimation(Context context) {
-        animationRotate = AnimationUtils.loadAnimation(MainActivity.this, R.anim.rotate_anim);
-        ImgeView.startAnimation(animationRotate);
+    public void Connect() {
+        serviceConnection = new ServiceConnection() {
+            @Override
+            public void onServiceConnected(ComponentName name, IBinder service) {
+                BoundService.LocalBinder localBinder = (BoundService.LocalBinder) service;
+                boundService = localBinder.getService();
+                boundService.addSong();
+                boundService.CreateMedia();
+
+            }
+
+            @Override
+            public void onServiceDisconnected(ComponentName name) {
+
+            }
+        };
     }
 
     public void Click() {
-
         ImgPlay.setOnClickListener(v -> {
-
-            CreateAnimation(MainActivity.this);
-            if (!mediaPlayer.isPlaying()) {
-                mediaPlayer.start();
-                ImgPlay.setBackgroundResource(R.drawable.ic_baseline_pause_24);
+            if (stateNotication == true) {
+                boundService.CreateNotification(10);
+                boundService.Play();
+                stateNotication = false;
             } else {
-                mediaPlayer.pause();
+                boundService.Play();
+            }
+            if (boundService.mStateImg == 1) {
+                if (stateAnimation == 0) {
+                    mAnimator.start();
+                    stateAnimation = 1;
+                }
+                if (stateAnimation == 2) {
+                    mAnimator.resume();
+                    stateAnimation = 1;
+                }
+                ImgPlay.setBackgroundResource(R.drawable.ic_baseline_pause_24);
+            } else if (boundService.mStateImg == 0) {
+                if (stateAnimation == 1) {
+                    mAnimator.pause();
+                    stateAnimation = 2;
+                }
                 ImgPlay.setBackgroundResource(R.drawable.ic_baseline_play_arrow_24);
             }
-            UpdateTime();
-            setTxtTimeEnd();
-            Intent intent = new Intent(this,BoundService.class);
-            intent.putExtra("title","Lời yêu ngây dại");
-            startService(intent);
-            bindService(intent,mServiceConnection,BIND_AUTO_CREATE);
+            txtTenbaihat.setText(boundService.getTitle());
+            boundService.TimeEnd();
+            txtTimeEnd.setText(boundService.getTimeEnd());
+
         });
-
-        ImgPause.setOnClickListener(v -> {
-
-            mediaPlayer.stop();
-            mediaPlayer.release();
+        ImgStop.setOnClickListener(v -> {
+            boundService.CreateMedia();
             ImgPlay.setBackgroundResource(R.drawable.ic_baseline_play_arrow_24);
         });
 
         ImgNext.setOnClickListener(v -> {
-            positon++;
-
-            if (positon == 1)
-                ImgeView.setBackgroundResource(R.drawable.img_vannho);
-            if (positon == 2)
-                ImgeView.setBackgroundResource(R.drawable.img_nuocmat);
-            if (positon == arraySong.size()) {
-                positon = 0;
-            }
-            if (positon == 0) ImgeView.setBackgroundResource(R.drawable.img_loiyeu);
-            mediaPlayer.stop();
-            mediaPlayer.release();
-            KhoitaoMedia();
-            mediaPlayer.start();
+            boundService.Next();
+            ChonHinh();
             ImgPlay.setBackgroundResource(R.drawable.ic_baseline_pause_24);
-            setTxtTimeEnd();
-
-
+            txtTenbaihat.setText(boundService.getTitle());
+            boundService.TimeEnd();
+            txtTimeEnd.setText(boundService.getTimeEnd());
+            boundService.CreateNotification(10);
         });
 
         ImgPre.setOnClickListener(v -> {
-            positon--;
-            if (positon == 0)
-                ImgeView.setBackgroundResource(R.drawable.img_loiyeu);
-            if (positon == 1)
-                ImgeView.setBackgroundResource(R.drawable.img_vannho);
-            if (positon == 2)
-                ImgeView.setBackgroundResource(R.drawable.img_nuocmat);
-            if (positon < 0) {
-                positon = 0;
-            }
-
-            mediaPlayer.stop();
-            mediaPlayer.release();
-            KhoitaoMedia();
-            mediaPlayer.start();
-            setTxtTimeEnd();
+            stateSong = 2;
+            boundService.Previous();
+            ChonHinh();
+            ImgPlay.setBackgroundResource(R.drawable.ic_baseline_pause_24);
+            txtTenbaihat.setText(boundService.getTitle());
+            boundService.TimeEnd();
+            txtTimeEnd.setText(boundService.getTimeEnd());
+            boundService.CreateNotification(10);
         });
     }
 
-    public void KhoitaoMedia() {
-        mediaPlayer = MediaPlayer.create(MainActivity.this
-                , arraySong.get(positon).getFile());
-        txtTenbaihat.setText(arraySong.get(positon).getTitle());
+    public void ChonHinh() {
+        if (boundService.mPosition == 0)
+            ImgeView.setBackgroundResource(R.drawable.img_loiyeu);
+        if (boundService.mPosition == 1)
+            ImgeView.setBackgroundResource(R.drawable.dungchoanhnua);
+        if (boundService.mPosition == 2)
+            ImgeView.setBackgroundResource(R.drawable.img_nuocmat);
     }
 
-    public void addSong() {
-        arraySong = new ArrayList<>();
-        arraySong.add(new Song("Lời yêu ngây dại", R.raw.loiyeungaydai));
-        arraySong.add(new Song("Vẫn nhớ", R.raw.vannho));
-        arraySong.add(new Song("nước mắt anh lau bằng tình yêu mới", R.raw.nuocmatemlaubangtinhyeu));
-
+    public void AnimationRotate() {
+        mAnimator = ObjectAnimator.ofFloat(ImgeView, View.ROTATION, 0f, 360f);
+        mAnimator.setDuration(30000).setRepeatCount(Animation.INFINITE);
+        mAnimator.setInterpolator(new LinearInterpolator());
     }
 
-    public void setTxtTimeEnd() {
-        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("mm:ss");
-        txtTimeEnd.setText(simpleDateFormat.format(mediaPlayer.getDuration()));
-        seekbar.setMax(mediaPlayer.getDuration());
-    }
-
-    public void UpdateTime() {
-        Handler handler = new Handler();
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                SimpleDateFormat simpleDateFormat = new SimpleDateFormat("mm:ss");
-                txtTimeBegin.setText(simpleDateFormat.format(mediaPlayer.getCurrentPosition()));
-                seekbar.setProgress(mediaPlayer.getCurrentPosition());
-                handler.postDelayed(this, 500);
-            }
-        }, 100);
-    }
 
 
 }
